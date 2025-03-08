@@ -1,32 +1,33 @@
-// components/AlertSystem.jsx
-const AlertSystem = ({ alerts }) => {
-    if (alerts.length === 0) {
-      return (
-        <div className="alerts-container">
-          <div className="no-alerts">No alerts at this time. Your posture looks good!</div>
-        </div>
-      );
-    }
-  
-    return (
-      <div className="alerts-container">
-        {alerts.map(alert => (
-          <div key={alert.id} className={`alert alert-${alert.type}`}>
-            <div className="alert-icon">
-              {alert.type === 'posture' && '⚠️'}
-              {alert.type === 'pitch' && '↕️'}
-              {alert.type === 'roll' && '↔️'}
-              {alert.type === 'connection' && '🔌'}
-            </div>
-            <div className="alert-content">
-              <div className="alert-message">{alert.message}</div>
-              <div className="alert-time">{new Date(alert.timestamp).toLocaleTimeString()}</div>
-            </div>
+import { AlertTriangle, WifiOff } from 'lucide-react';
+
+export default function AlertSystem({ alerts }) {
+  return (
+    <div className="space-y-3">
+      {alerts.map(alert => (
+        <div 
+          key={alert.id}
+          className={`flex items-start gap-3 p-4 rounded-lg ${
+            alert.type === 'connection' ? 'bg-red-50' :
+            alert.type === 'posture' ? 'bg-yellow-50' :
+            'bg-blue-50'
+          }`}
+        >
+          {alert.type === 'connection' ? (
+            <WifiOff className="h-5 w-5 text-red-500 flex-shrink-0" />
+          ) : (
+            <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+          )}
+          <div>
+            <p className="text-sm font-medium text-gray-800">{alert.message}</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {new Date(alert.timestamp).toLocaleTimeString()}
+            </p>
           </div>
-        ))}
-      </div>
-    );
-  };
-  
-  export default AlertSystem;
-  
+        </div>
+      ))}
+      {alerts.length === 0 && (
+        <p className="text-center text-gray-500 py-4">No alerts</p>
+      )}
+    </div>
+  );
+}
