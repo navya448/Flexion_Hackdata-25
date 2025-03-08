@@ -1,13 +1,10 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from "react";
+import PostureControl from "./PostureControl";
 
 function App() {
   return (
-    <div>
-      <h1>Hello, React!</h1>
-      <p>Welcome to my website.</p>
+    <div className="bg-gray-100 min-h-screen flex justify-center items-center">
+      <PostureControl />
     </div>
   );
 }
