@@ -4,6 +4,7 @@
     "framer-motion": "^12.4.10",
     "lucide-react": "^0.479.0",
     "react-gauge-chart": "^0.5.1",
+    "react-toastify": "^11.0.5",
     "recharts": "^2.15.1"
   },
   "devDependencies": {

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import useDataFetcher from "./DataFetcher";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import "./App.css";
 
 function App() {
@@ -26,6 +28,13 @@ function App() {
           temperature: data.temperature,
         },
       ]);
+
+      if (data.postureAngle < 75 || (180-Math.abs(data.rollAngle))>15) {
+        toast.error("Bad Posture Detected! Please adjust your posture.", {
+          position: "top-right",
+          autoClose: 3000,
+        });
+      }
     }
   }, [data]);
 
@@ -33,6 +42,7 @@ function App() {
 
   return (
     <div className="app-container">
+      <ToastContainer />
       <header className="app-header">
         <h1>Posture Monitor</h1>
         <div className="connection-status">
@@ -46,11 +56,8 @@ function App() {
             <p>
               Good posture is essential for overall health and well-being. It helps prevent back pain, reduces strain on muscles and joints, and improves circulation. Poor posture, on the other hand, can lead to chronic pain, fatigue, and even long-term spinal issues.
             </p>
-
-          
-          </section>
-<br>
-</br>
+      </section>
+      <br></br>
       <main className="app-main">
         <div className="content-wrapper">
           {/* 📊 Graphs First */}
@@ -114,32 +121,11 @@ function App() {
             </ResponsiveContainer>
           </section>
 
-          
-          {/* 📝 Stats After Graphs & Content */}
           <section className="sensor-card">
             <h2>Posture Data</h2>
             <p>Posture Angle: {data.ax?.toFixed(2)}°</p>
             <p>Pitch: {data.ay?.toFixed(2)}°</p>
             <p>Roll: {data.az?.toFixed(2)}°</p>
-          </section>
-
-          <section className="sensor-card">
-            <h2>Accelerometer</h2>
-            <p>X: {data.gx?.toFixed(2)} m/s²</p>
-            <p>Y: {data.gy?.toFixed(2)} m/s²</p>
-            <p>Z: {data.gz?.toFixed(2)} m/s²</p>
-          </section>
-
-          <section className="sensor-card">
-            <h2>Gyroscope</h2>
-            <p>X: {data.pitchAngle?.toFixed(2)}°/s</p>
-            <p>Y: {data.postureAngle?.toFixed(2)}°/s</p>
-            <p>Z: {data.rollAngle?.toFixed(2)}°/s</p>
-          </section>
-
-          <section className="sensor-card">
-            <h2>Temperature</h2>
-            <p>{data.temperature?.toFixed(2)}°C</p>
           </section>
 
           <section className="settings-card">
