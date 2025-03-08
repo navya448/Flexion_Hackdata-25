@@ -40,7 +40,17 @@ function App() {
           {status.toUpperCase()} {lastUpdate && ` - Last update: ${lastUpdate.toLocaleTimeString()}`}
         </div>
       </header>
+      {/* ✨ New Content Section ✨ */}
+      <section className="content-card">
+            <h2>The Importance of Good Posture</h2>
+            <p>
+              Good posture is essential for overall health and well-being. It helps prevent back pain, reduces strain on muscles and joints, and improves circulation. Poor posture, on the other hand, can lead to chronic pain, fatigue, and even long-term spinal issues.
+            </p>
 
+          
+          </section>
+<br>
+</br>
       <main className="app-main">
         <div className="content-wrapper">
           {/* 📊 Graphs First */}
@@ -104,7 +114,8 @@ function App() {
             </ResponsiveContainer>
           </section>
 
-          {/* 📝 Stats After Graphs */}
+          
+          {/* 📝 Stats After Graphs & Content */}
           <section className="sensor-card">
             <h2>Posture Data</h2>
             <p>Posture Angle: {data.ax?.toFixed(2)}°</p>
