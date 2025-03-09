@@ -30,6 +30,10 @@ function App() {
     roll: 0,
     pitch: 0
   });
+  
+  // Bad posture duration tracking
+  const [badPostureDuration, setBadPostureDuration] = useState(0);
+  const [badPostureTimer, setBadPostureTimer] = useState(null);
 
   useEffect(() => {
     if (data && isMonitoring) {
@@ -79,7 +83,7 @@ function App() {
       // Detect intentional movement vs. bad posture
       detectActivityOrBadPosture(data);
     }
-  }, [data, isMonitoring, postureThreshold, rollThreshold, mode]);
+  }, [data, isMonitoring, postureThreshold, rollThreshold, mode, refreshRate]);
 
   // Function to detect if current movement is an activity or bad posture
   const detectActivityOrBadPosture = (currentData) => {
@@ -99,7 +103,7 @@ function App() {
     
     // Check if the posture data indicates bad posture
     const isPoorPosture = currentData.postureAngle < postureThreshold || 
-                         (180 - Math.abs(currentData.rollAngle)) > rollThreshold;
+                          (180 - Math.abs(currentData.rollAngle)) > rollThreshold;
     
     // If we detect high acceleration, we're likely in an activity
     if (isHighAcceleration && !isInActivity) {
@@ -119,7 +123,39 @@ function App() {
       });
     }
     
-    // If we have poor posture but NOT in an activity, warn the user
+    // Track bad posture duration in all modes
+    if (isPoorPosture) {
+      // If this is the start of bad posture, begin the timer
+      if (badPostureDuration === 0) {
+        if (badPostureTimer) clearTimeout(badPostureTimer);
+        const timer = setTimeout(() => {
+          // After 5 seconds of continuous bad posture, show the warning
+          if (mode === "normal" || (mode === "activity" && !isInActivity)) {
+            toast.error("Bad Posture Detected! Please adjust your posture.", {
+              position: "top-right",
+              autoClose: 3000,
+            });
+          } else if (mode === "activity" && isInActivity) {
+            toast.error("Bad posture for too long! Adjust even during activity.", {
+              position: "top-right",
+              autoClose: 3000,
+            });
+          }
+        }, 5000); // 5 seconds threshold
+        setBadPostureTimer(timer);
+      }
+      // Increment the duration counter
+      setBadPostureDuration(prev => prev + refreshRate/1000);
+    } else {
+      // Reset the duration if posture is good
+      setBadPostureDuration(0);
+      if (badPostureTimer) {
+        clearTimeout(badPostureTimer);
+        setBadPostureTimer(null);
+      }
+    }
+    
+    // For immediate feedback in normal mode
     if (isPoorPosture && !isInActivity && mode === "normal") {
       // Pattern detection to check if this is just returning to position
       const isReturningToPosition = detectReturningPattern();
@@ -264,7 +300,7 @@ function App() {
           <>
             <h2>Activity Mode</h2>
             <p>
-              This mode is designed for active periods when you're moving around, exercising, or frequently changing position. The system will automatically detect movements and temporarily pause posture warnings during activities.
+              This mode is designed for active periods when you're moving around, exercising, or frequently changing position. The system will automatically detect movements and temporarily pause immediate posture warnings during activities. However, if poor posture persists for more than 5 seconds, you'll still get an alert.
             </p>
           </>
         )}
@@ -364,9 +400,15 @@ function App() {
             <div className="activity-status">
               <h3>Status</h3>
               <p className={isInActivity ? "active" : ""}>
-                {isInActivity ? "Movement Detected - Alerts Paused" : "Monitoring Posture"}
+                {isInActivity ? "Movement Detected - Immediate Alerts Paused" : "Monitoring Posture"}
               </p>
               {mode === "activity" && <p>Activity mode - more movement allowed</p>}
+              {badPostureDuration > 0 && (
+                <p className="bad-posture-duration">
+                  Bad posture duration: {badPostureDuration.toFixed(1)}s
+                  {badPostureDuration >= 5 && <span className="warning"> ⚠️ Too long!</span>}
+                </p>
+              )}
               
               {/* Show user baseline after calibration */}
               {!calibrationMode && (
@@ -459,6 +501,17 @@ function App() {
                     defaultValue="5" 
                     onChange={(e) => window.activityTimeout = Number(e.target.value) * 1000}
                   />
+                </div>
+                <div className="advanced-setting-row">
+                  <label>Bad Posture Alert Delay (seconds): </label>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="10"
+                    defaultValue="5" 
+                    disabled={true}
+                  />
+                  <span>Time before showing bad posture alert in activity mode</span>
                 </div>
               </details>
             </div>
