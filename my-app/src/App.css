@@ -68,11 +68,13 @@ body {
   align-items: center;
 }
 .content-wrapper {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: auto auto auto;
   gap: 20px;
-  max-width: auto;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .sensor-card, .settings-card {
@@ -174,6 +176,9 @@ section {
 .posture-values {
   display: flex;
   justify-content: space-between;
+  align-items: center; /* Centers content horizontally */
+  justify-content: center; /* Centers content vertically */
+  text-align: center; /* Ensures text is centered */
   gap: 15px;
 }
 
@@ -337,3 +342,216 @@ footer {
 .status-dot.paused {
   background-color: #f39c12;
 }
+
+/* Sports mode styling */
+.sports-mode {
+  background-color: #e9f3ff;
+  color: #003366;
+}
+
+.sports-mode .app-header {
+  background-color: #0052cc;
+  color: white;
+}
+
+.sports-mode .content-card {
+  background-color: #cce5ff;
+  border-left: 5px solid #0052cc;
+}
+
+.sports-mode .settings-card,
+.sports-mode .sensor-card {
+  background-color: #e6f2ff;
+  border: 1px solid #80bdff;
+}
+
+.sports-mode h2 {
+  color: #004085;
+}
+
+/* Mode toggle button */
+.mode-toggle-container {
+  display: flex;
+  justify-content: center;
+  margin: 15px 0;
+}
+
+.mode-toggle-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-size: 16px;
+}
+
+.mode-toggle-button.normal {
+  background-color: #0052cc;
+  color: white;
+}
+
+.mode-toggle-button.sports {
+  background-color: #ff8c00;
+  color: white;
+}
+
+/* Toggle button styling */
+.toggle-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.toggle-button.on {
+  background-color: #ff5555;
+  color: white;
+}
+
+.toggle-button.off {
+  background-color: #55aa55;
+  color: white;
+}
+
+.setting-row {
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.status-dot.connected {
+  background-color: #4caf50;
+}
+
+.status-dot.connecting {
+  background-color: #ffc107;
+}
+
+.status-dot.disconnected {
+  background-color: #f44336;
+}
+
+.status-dot.paused {
+  background-color: #f39c12;
+}
+
+/* Sports mode styling - Updated to match normal mode layout */
+.sports-mode {
+  background-color: #e9f3ff;
+  color: #003366;
+}
+
+.sports-mode .app-header {
+  background-color: #0052cc;
+  color: white;
+}
+
+/* Remove the grid layout for content-wrapper in sports mode */
+.sports-mode .content-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  max-width: auto;
+}
+
+/* Match card styling but keep sports colors */
+.sports-mode .content-card {
+  background-color: #cce5ff;
+  border-radius: var(--border-radius);
+  padding: 20px;
+  box-shadow: var(--box-shadow);
+  border-left: 5px solid #0052cc;
+}
+
+.sports-mode .settings-card,
+.sports-mode .sensor-card {
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  background-color: #e6f2ff;
+  border: 1px solid #80bdff;
+  border-radius: var(--border-radius);
+  padding: 20px;
+  box-shadow: var(--box-shadow);
+}
+
+.sports-mode h2 {
+  color: #004085;
+  margin-bottom: 15px;
+  font-size: 1.3rem;
+}
+
+/* Keep the rest of the sports mode styles */
+.mode-toggle-container {
+  display: flex;
+  justify-content: center;
+  margin: 15px 0;
+}
+
+.mode-toggle-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-size: 16px;
+}
+
+.mode-toggle-button.normal {
+  background-color: #0052cc;
+  color: white;
+}
+
+.mode-toggle-button.sports {
+  background-color: #ff8c00;
+  color: white;
+}
+
+/* Sports mode specific settings */
+.sports-settings {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: rgba(0, 82, 204, 0.1);
+  border-radius: 8px;
+}
+
+.threshold-setting {
+  display: flex;
+  align-items: center;
+  margin: 15px 0;
+  gap: 10px;
+}
+
+.threshold-setting label {
+  min-width: 180px;
+}
+
+.threshold-setting input {
+  flex-grow: 1;
+}
+
+.threshold-info {
+  font-size: 14px;
+  font-style: italic;
+  margin-top: 10px;
+  color: #666;
+}
+
+.sports-mode .threshold-info {
+  color: #0052cc;
+}
+

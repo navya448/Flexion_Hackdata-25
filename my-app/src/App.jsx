@@ -6,11 +6,19 @@ import "react-toastify/dist/ReactToastify.css";
 import "./App.css";
 
 function App() {
+  // General settings
   const [refreshRate, setRefreshRate] = useState(1000);
-  const [isMonitoring, setIsMonitoring] = useState(true); // State for monitoring toggle
-  const { data, status, error, lastUpdate } = useDataFetcher(isMonitoring ? refreshRate : null); // Pass null to pause data fetching
+  const [isMonitoring, setIsMonitoring] = useState(true);
+  const [mode, setMode] = useState("normal"); // normal or sports
+  
+  // Threshold settings
+  const [postureThreshold, setPostureThreshold] = useState(75); // Default normal mode threshold
+  const [rollThreshold, setRollThreshold] = useState(15); // Default normal mode threshold
+  
+  // Data handling
+  const { data, status, error, lastUpdate } = useDataFetcher(isMonitoring ? refreshRate : null);
   const [sensorHistory, setSensorHistory] = useState([]);
-  const [lastValidData, setLastValidData] = useState(null); // Store the last valid data
+  const [lastValidData, setLastValidData] = useState(null);
 
   useEffect(() => {
     if (data && isMonitoring) {
@@ -34,14 +42,15 @@ function App() {
         },
       ]);
 
-      if (data.postureAngle < 75 || (180-Math.abs(data.rollAngle))>15) {
-        toast.error("Bad Posture Detected! Please adjust your posture.", {
+      // Check posture based on current mode's thresholds
+      if (data.postureAngle < postureThreshold || (180-Math.abs(data.rollAngle)) > rollThreshold) {
+        toast.error(`Bad Posture Detected! ${mode === "sports" ? "Adjust for sports posture." : "Please adjust your posture."}`, {
           position: "top-right",
           autoClose: 3000,
         });
       }
     }
-  }, [data, isMonitoring]);
+  }, [data, isMonitoring, postureThreshold, rollThreshold, mode]);
 
   // Toggle function for monitoring
   const toggleMonitoring = () => {
@@ -53,28 +62,67 @@ function App() {
     }
   };
 
+  // Switch between modes
+  const toggleMode = () => {
+    const newMode = mode === "normal" ? "sports" : "normal";
+    setMode(newMode);
+    
+    // Reset thresholds to defaults when switching modes
+    if (newMode === "normal") {
+      setPostureThreshold(75);
+      setRollThreshold(15);
+      toast.info("Switched to Normal Mode", { position: "top-right", autoClose: 2000 });
+    } else {
+      setPostureThreshold(65); // More strict default for sports
+      setRollThreshold(10); // More strict default for sports
+      toast.info("Switched to Sports Mode", { position: "top-right", autoClose: 2000 });
+    }
+  };
+
   // Determine which data to display (current data when monitoring, last valid data when paused)
   const displayData = isMonitoring ? data : lastValidData;
 
   if (!displayData) return <p className="loading">Loading...</p>;
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${mode}-mode`}>
       <ToastContainer />
       <header className="app-header">
-        <h1>Posture Monitor</h1>
+        <h1>Posture Monitor {mode === "sports" ? "- Sports Mode" : ""}</h1>
         <div className="connection-status">
           <span className={`status-dot ${isMonitoring ? status : "paused"}`}></span>
           {isMonitoring ? status.toUpperCase() : "PAUSED"} 
           {lastUpdate && ` - Last update: ${isMonitoring ? lastUpdate.toLocaleTimeString() : "Monitoring paused"}`}
         </div>
       </header>
-      {/* ✨ New Content Section ✨ */}
+      
+      {/* Mode toggle button */}
+      <div className="mode-toggle-container">
+        <button 
+          onClick={toggleMode}
+          className={`mode-toggle-button ${mode}`}
+        >
+          {mode === "normal" ? "Switch to Sports Mode" : "Switch to Normal Mode"}
+        </button>
+      </div>
+
+      {/* Content card - different for each mode */}
       <section className="content-card">
-        <h2>The Importance of Good Posture</h2>
-        <p>
-          Good posture is essential for overall health and well-being. It helps prevent back pain, reduces strain on muscles and joints, and improves circulation. Poor posture, on the other hand, can lead to chronic pain, fatigue, and even long-term spinal issues.
-        </p>
+        {mode === "normal" ? (
+          <>
+            <h2>The Importance of Good Posture</h2>
+            <p>
+              Good posture is essential for overall health and well-being. It helps prevent back pain, reduces strain on muscles and joints, and improves circulation. Poor posture, on the other hand, can lead to chronic pain, fatigue, and even long-term spinal issues.
+            </p>
+          </>
+        ) : (
+          <>
+            <h2>Sports Performance Posture</h2>
+            <p>
+              Proper posture during sports activities is crucial for maximizing performance and preventing injuries. Different sports require different posture positions - customize the thresholds below to match your specific activity's requirements.
+            </p>
+          </>
+        )}
       </section>
       <br></br>
       <main className="app-main">
@@ -89,7 +137,7 @@ function App() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="postureAngle" stroke="#8884d8" />
+                <Line type="monotone" dataKey="postureAngle" stroke={mode === "sports" ? "#ff8c00" : "#8884d8"} />
               </LineChart>
             </ResponsiveContainer>
           </section>
@@ -162,7 +210,7 @@ function App() {
               </select>
             </div>
             
-            <div className="setting-row" style={{ marginTop: "15px" }}>
+            <div className="setting-row">
               <button 
                 onClick={toggleMonitoring}
                 className={`toggle-button ${isMonitoring ? 'on' : 'off'}`}
@@ -170,6 +218,40 @@ function App() {
                 {isMonitoring ? 'TURN OFF' : 'TURN ON'}
               </button>
             </div>
+
+            {/* Custom threshold settings for Sports Mode */}
+            {mode === "sports" && (
+              <div className="sports-settings">
+                <h3>Sports Posture Thresholds</h3>
+                <div className="threshold-setting">
+                  <label>Posture Angle Threshold: </label>
+                  <input 
+                    type="range" 
+                    min="45" 
+                    max="90" 
+                    value={postureThreshold} 
+                    onChange={(e) => setPostureThreshold(Number(e.target.value))}
+                    disabled={!isMonitoring}
+                  />
+                  <span>{postureThreshold}°</span>
+                </div>
+                <div className="threshold-setting">
+                  <label>Roll Angle Threshold: </label>
+                  <input 
+                    type="range" 
+                    min="5" 
+                    max="25" 
+                    value={rollThreshold} 
+                    onChange={(e) => setRollThreshold(Number(e.target.value))}
+                    disabled={!isMonitoring}
+                  />
+                  <span>{rollThreshold}°</span>
+                </div>
+                <p className="threshold-info">
+                  Lower thresholds = stricter posture requirements
+                </p>
+              </div>
+            )}
           </section>
         </div>
       </main>
