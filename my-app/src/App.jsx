@@ -9,7 +9,7 @@ function App() {
   // General settings
   const [refreshRate, setRefreshRate] = useState(1000);
   const [isMonitoring, setIsMonitoring] = useState(true);
-  const [mode, setMode] = useState("normal"); // normal or sports
+  const [mode, setMode] = useState("normal"); // normal or activity
   
   // Threshold settings
   const [postureThreshold, setPostureThreshold] = useState(75); // Default normal mode threshold
@@ -19,6 +19,17 @@ function App() {
   const { data, status, error, lastUpdate } = useDataFetcher(isMonitoring ? refreshRate : null);
   const [sensorHistory, setSensorHistory] = useState([]);
   const [lastValidData, setLastValidData] = useState(null);
+  
+  // Activity detection
+  const [isInActivity, setIsInActivity] = useState(false);
+  const [activityTimer, setActivityTimer] = useState(null);
+  const [movementBuffer, setMovementBuffer] = useState([]);
+  const [calibrationMode, setCalibrationMode] = useState(false);
+  const [userBaseline, setUserBaseline] = useState({
+    postureAngle: 80, // Default values
+    roll: 0,
+    pitch: 0
+  });
 
   useEffect(() => {
     if (data && isMonitoring) {
@@ -29,39 +40,149 @@ function App() {
       const timestamp = Date.now();
       const timeString = new Date().toLocaleTimeString();
       
+      // Create new entry for history
+      const newEntry = {
+        id: timestamp,
+        time: timeString,
+        postureAngle: data.ax,
+        pitch: data.ay,
+        roll: data.az,
+        accX: data.gx,
+        accY: data.gy,
+        accZ: data.gz,
+        gyroX: data.pitchAngle,
+        gyroY: data.postureAngle,
+        gyroZ: data.rollAngle,
+        temperature: data.temperature,
+      };
+      
+      // Update sensor history
       setSensorHistory((prev) => {
-        // Create new entry for history
-        const newEntry = {
-          id: timestamp,
-          time: timeString,
-          postureAngle: data.ax,
-          pitch: data.ay,
-          roll: data.az,
-          accX: data.gx,
-          accY: data.gy,
-          accZ: data.gz,
-          gyroX: data.pitchAngle,
-          gyroY: data.postureAngle,
-          gyroZ: data.rollAngle,
-          temperature: data.temperature,
-        };
-        
-        // Add new entry and trim history to keep last 50 readings
         const updatedHistory = [...prev, newEntry].slice(-50);
-        
-        // Sort by timestamp/id to ensure proper order
         return updatedHistory.sort((a, b) => a.id - b.id);
       });
 
-      // Check posture based on current mode's thresholds
-      if (data.postureAngle < postureThreshold || (180-Math.abs(data.rollAngle)) > rollThreshold) {
-        toast.error(`Bad Posture Detected! ${mode === "sports" ? "Adjust for sports posture." : "Please adjust your posture."}`, {
+      // Update movement buffer for activity detection
+      setMovementBuffer(prev => {
+        const updatedBuffer = [...prev, {
+          timestamp,
+          postureAngle: data.postureAngle,
+          roll: data.rollAngle,
+          pitch: data.pitchAngle,
+          accX: data.gx,
+          accY: data.gy,
+          accZ: data.gz
+        }].slice(-10); // Keep last 10 readings for pattern detection
+        return updatedBuffer;
+      });
+
+      // Detect intentional movement vs. bad posture
+      detectActivityOrBadPosture(data);
+    }
+  }, [data, isMonitoring, postureThreshold, rollThreshold, mode]);
+
+  // Function to detect if current movement is an activity or bad posture
+  const detectActivityOrBadPosture = (currentData) => {
+    // Skip checks if we're calibrating
+    if (calibrationMode) return;
+    
+    // Calculate movement metrics
+    const accelerationMagnitude = Math.sqrt(
+      Math.pow(currentData.gx, 2) + 
+      Math.pow(currentData.gy, 2) + 
+      Math.pow(currentData.gz, 2)
+    );
+    
+    // Detect sudden acceleration changes (picking up items, exercise movements)
+    const activitySensitivity = window.activitySensitivity || 1.8;
+    const isHighAcceleration = accelerationMagnitude > activitySensitivity;
+    
+    // Check if the posture data indicates bad posture
+    const isPoorPosture = currentData.postureAngle < postureThreshold || 
+                         (180 - Math.abs(currentData.rollAngle)) > rollThreshold;
+    
+    // If we detect high acceleration, we're likely in an activity
+    if (isHighAcceleration && !isInActivity) {
+      setIsInActivity(true);
+      // Set a timer to exit activity mode after some seconds of normal movement
+      if (activityTimer) clearTimeout(activityTimer);
+      const timeoutDuration = window.activityTimeout || 5000;
+      const timer = setTimeout(() => {
+        setIsInActivity(false);
+      }, timeoutDuration);
+      setActivityTimer(timer);
+      
+      // Toast only when entering activity mode
+      toast.info("Activity detected - posture warnings paused", {
+        position: "top-right",
+        autoClose: 2000,
+      });
+    }
+    
+    // If we have poor posture but NOT in an activity, warn the user
+    if (isPoorPosture && !isInActivity && mode === "normal") {
+      // Pattern detection to check if this is just returning to position
+      const isReturningToPosition = detectReturningPattern();
+      
+      if (!isReturningToPosition) {
+        toast.error("Bad Posture Detected! Please adjust your posture.", {
           position: "top-right",
           autoClose: 3000,
         });
       }
     }
-  }, [data, isMonitoring, postureThreshold, rollThreshold, mode]);
+  };
+  
+  // Function to detect if user is just returning to position after bending
+  const detectReturningPattern = () => {
+    if (movementBuffer.length < 5) return false;
+    
+    // Look at postureAngle trend over last few readings
+    const lastFewReadings = movementBuffer.slice(-5);
+    
+    // If angles are consistently improving, user is likely returning to good posture
+    let improving = true;
+    for (let i = 1; i < lastFewReadings.length; i++) {
+      if (lastFewReadings[i].postureAngle <= lastFewReadings[i-1].postureAngle) {
+        improving = false;
+        break;
+      }
+    }
+    
+    return improving;
+  };
+
+  // Start calibration mode to set user's baseline posture
+  const startCalibration = () => {
+    setCalibrationMode(true);
+    toast.info("Calibration started. Please sit with good posture for 5 seconds.", {
+      position: "top-center",
+      autoClose: 5000,
+    });
+    
+    // Collect data for 5 seconds
+    setTimeout(() => {
+      if (sensorHistory.length > 0) {
+        // Calculate average from last few readings
+        const lastReadings = sensorHistory.slice(-5);
+        const avgPostureAngle = lastReadings.reduce((sum, reading) => sum + reading.postureAngle, 0) / lastReadings.length;
+        const avgRoll = lastReadings.reduce((sum, reading) => sum + reading.roll, 0) / lastReadings.length;
+        const avgPitch = lastReadings.reduce((sum, reading) => sum + reading.pitch, 0) / lastReadings.length;
+        
+        setUserBaseline({
+          postureAngle: avgPostureAngle,
+          roll: avgRoll,
+          pitch: avgPitch
+        });
+        
+        toast.success("Calibration complete! Your baseline posture has been saved.", {
+          position: "top-center",
+          autoClose: 3000,
+        });
+      }
+      setCalibrationMode(false);
+    }, 5000);
+  };
 
   // Toggle function for monitoring
   const toggleMonitoring = () => {
@@ -75,18 +196,17 @@ function App() {
 
   // Switch between modes
   const toggleMode = () => {
-    const newMode = mode === "normal" ? "sports" : "normal";
-    setMode(newMode);
-    
-    // Reset thresholds to defaults when switching modes
-    if (newMode === "normal") {
+    // Toggle between normal and activity mode only
+    if (mode === "normal") {
+      setMode("activity");
+      setPostureThreshold(50); // Much more lenient for activity
+      setRollThreshold(30); // Much more lenient for activity
+      toast.info("Switched to Activity Mode (for workouts/movement)", { position: "top-right", autoClose: 2000 });
+    } else {
+      setMode("normal");
       setPostureThreshold(75);
       setRollThreshold(15);
       toast.info("Switched to Normal Mode", { position: "top-right", autoClose: 2000 });
-    } else {
-      setPostureThreshold(65); // More strict default for sports
-      setRollThreshold(10); // More strict default for sports
-      toast.info("Switched to Sports Mode", { position: "top-right", autoClose: 2000 });
     }
   };
 
@@ -99,7 +219,12 @@ function App() {
     <div className={`app-container ${mode}-mode`}>
       <ToastContainer />
       <header className="app-header">
-        <h1>Posture Monitor {mode === "sports" ? "- Sports Mode" : ""}</h1>
+        <h1>
+          Posture Monitor 
+          {mode === "activity" ? "- Activity Mode" : ""}
+          {isInActivity && " (Activity Detected)"}
+          {calibrationMode && " (Calibrating)"}
+        </h1>
         <div className="connection-status">
           <span className={`status-dot ${isMonitoring ? status : "paused"}`}></span>
           {isMonitoring ? status.toUpperCase() : "PAUSED"} 
@@ -107,13 +232,22 @@ function App() {
         </div>
       </header>
       
-      {/* Mode toggle button */}
+      {/* Mode toggle buttons */}
       <div className="mode-toggle-container">
         <button 
           onClick={toggleMode}
           className={`mode-toggle-button ${mode}`}
         >
-          {mode === "normal" ? "Switch to Sports Mode" : "Switch to Normal Mode"}
+          {mode === "normal" ? "Switch to Activity Mode" : "Switch to Normal Mode"}
+        </button>
+        
+        {/* Calibration button */}
+        <button
+          onClick={startCalibration}
+          className="calibrate-button"
+          disabled={calibrationMode || !isMonitoring}
+        >
+          {calibrationMode ? "Calibrating..." : "Calibrate to Your Posture"}
         </button>
       </div>
 
@@ -128,9 +262,9 @@ function App() {
           </>
         ) : (
           <>
-            <h2>Sports Performance Posture</h2>
+            <h2>Activity Mode</h2>
             <p>
-              Proper posture during sports activities is crucial for maximizing performance and preventing injuries. Different sports require different posture positions - customize the thresholds below to match your specific activity's requirements.
+              This mode is designed for active periods when you're moving around, exercising, or frequently changing position. The system will automatically detect movements and temporarily pause posture warnings during activities.
             </p>
           </>
         )}
@@ -151,7 +285,7 @@ function App() {
                 <Line 
                   type="monotone" 
                   dataKey="postureAngle" 
-                  stroke={mode === "sports" ? "#ff8c00" : "#8884d8"} 
+                  stroke={mode === "activity" ? "#00ff00" : "#8884d8"} 
                   dot={false}
                   isAnimationActive={false}
                 />
@@ -192,17 +326,25 @@ function App() {
           </section>
 
           <section className="chart-section">
-            <h2>Temperature Over Time</h2>
+            <h2>Movement Intensity</h2>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={sensorHistory}>
+              <LineChart data={sensorHistory.map(entry => ({
+                ...entry,
+                // Calculate combined acceleration (movement intensity)
+                movementIntensity: Math.sqrt(
+                  Math.pow(entry.accX || 0, 2) + 
+                  Math.pow(entry.accY || 0, 2) + 
+                  Math.pow(entry.accZ || 0, 2)
+                ).toFixed(2)
+              }))}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="time" tickCount={5} />
-                <YAxis domain={['auto', 'auto']} />
+                <YAxis domain={[0, 'auto']} />
                 <Tooltip />
                 <Legend />
                 <Line 
                   type="monotone" 
-                  dataKey="temperature" 
+                  dataKey="movementIntensity" 
                   stroke="#ff0000" 
                   dot={false}
                   isAnimationActive={false}
@@ -217,6 +359,23 @@ function App() {
             <p>Posture Angle: {displayData.ax?.toFixed(2)}°</p>
             <p>Pitch: {displayData.ay?.toFixed(2)}°</p>
             <p>Roll: {displayData.az?.toFixed(2)}°</p>
+            
+            {/* Activity status */}
+            <div className="activity-status">
+              <h3>Status</h3>
+              <p className={isInActivity ? "active" : ""}>
+                {isInActivity ? "Movement Detected - Alerts Paused" : "Monitoring Posture"}
+              </p>
+              {mode === "activity" && <p>Activity mode - more movement allowed</p>}
+              
+              {/* Show user baseline after calibration */}
+              {!calibrationMode && (
+                <div className="baseline-info">
+                  <h4>Your Calibrated Baseline</h4>
+                  <p>Ideal Posture: {userBaseline.postureAngle.toFixed(1)}°</p>
+                </div>
+              )}
+            </div>
           </section>
 
           <section className="settings-card">
@@ -243,39 +402,66 @@ function App() {
               </button>
             </div>
 
-            {/* Custom threshold settings for Sports Mode */}
-            {mode === "sports" && (
-              <div className="sports-settings">
-                <h3>Sports Posture Thresholds</h3>
-                <div className="threshold-setting">
-                  <label>Posture Angle Threshold: </label>
-                  <input 
-                    type="range" 
-                    min="45" 
-                    max="90" 
-                    value={postureThreshold} 
-                    onChange={(e) => setPostureThreshold(Number(e.target.value))}
-                    disabled={!isMonitoring}
-                  />
-                  <span>{postureThreshold}°</span>
-                </div>
-                <div className="threshold-setting">
-                  <label>Roll Angle Threshold: </label>
-                  <input 
-                    type="range" 
-                    min="5" 
-                    max="25" 
-                    value={rollThreshold} 
-                    onChange={(e) => setRollThreshold(Number(e.target.value))}
-                    disabled={!isMonitoring}
-                  />
-                  <span>{rollThreshold}°</span>
-                </div>
-                <p className="threshold-info">
-                  Lower thresholds = stricter posture requirements
-                </p>
+            {/* Mode-specific settings */}
+            <div className="custom-settings">
+              <h3>Posture Thresholds</h3>
+              <div className="threshold-setting">
+                <label>Posture Angle Threshold: </label>
+                <input 
+                  type="range" 
+                  min={mode === "activity" ? "30" : "45"} 
+                  max="90" 
+                  value={postureThreshold} 
+                  onChange={(e) => setPostureThreshold(Number(e.target.value))}
+                  disabled={!isMonitoring}
+                />
+                <span>{postureThreshold}°</span>
               </div>
-            )}
+              <div className="threshold-setting">
+                <label>Roll Angle Threshold: </label>
+                <input 
+                  type="range" 
+                  min="5" 
+                  max={mode === "activity" ? "45" : "25"} 
+                  value={rollThreshold} 
+                  onChange={(e) => setRollThreshold(Number(e.target.value))}
+                  disabled={!isMonitoring}
+                />
+                <span>{rollThreshold}°</span>
+              </div>
+              <p className="threshold-info">
+                Lower thresholds = stricter posture requirements
+              </p>
+            </div>
+            
+            {/* Advanced settings */}
+            <div className="advanced-settings">
+              <details>
+                <summary>Advanced Settings</summary>
+                <div className="advanced-setting-row">
+                  <label>Activity Detection Sensitivity: </label>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="3" 
+                    step="0.1"
+                    defaultValue="1.8" 
+                    onChange={(e) => window.activitySensitivity = Number(e.target.value)}
+                  />
+                  <span>Lower = more sensitive</span>
+                </div>
+                <div className="advanced-setting-row">
+                  <label>Activity Timeout (seconds): </label>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="15"
+                    defaultValue="5" 
+                    onChange={(e) => window.activityTimeout = Number(e.target.value) * 1000}
+                  />
+                </div>
+              </details>
+            </div>
           </section>
         </div>
       </main>
