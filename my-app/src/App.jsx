@@ -7,11 +7,16 @@ import "./App.css";
 
 function App() {
   const [refreshRate, setRefreshRate] = useState(1000);
-  const { data, status, error, lastUpdate } = useDataFetcher(refreshRate);
+  const [isMonitoring, setIsMonitoring] = useState(true); // State for monitoring toggle
+  const { data, status, error, lastUpdate } = useDataFetcher(isMonitoring ? refreshRate : null); // Pass null to pause data fetching
   const [sensorHistory, setSensorHistory] = useState([]);
+  const [lastValidData, setLastValidData] = useState(null); // Store the last valid data
 
   useEffect(() => {
-    if (data) {
+    if (data && isMonitoring) {
+      // Update the last valid data whenever we receive new data
+      setLastValidData(data);
+      
       setSensorHistory((prev) => [
         ...prev.slice(-50), // Keep only the last 50 readings
         {
@@ -36,9 +41,22 @@ function App() {
         });
       }
     }
-  }, [data]);
+  }, [data, isMonitoring]);
 
-  if (!data) return <p className="loading">Loading...</p>;
+  // Toggle function for monitoring
+  const toggleMonitoring = () => {
+    setIsMonitoring(prev => !prev);
+    if (!isMonitoring) {
+      toast.info("Monitoring resumed", { position: "top-right", autoClose: 2000 });
+    } else {
+      toast.warn("Monitoring paused", { position: "top-right", autoClose: 2000 });
+    }
+  };
+
+  // Determine which data to display (current data when monitoring, last valid data when paused)
+  const displayData = isMonitoring ? data : lastValidData;
+
+  if (!displayData) return <p className="loading">Loading...</p>;
 
   return (
     <div className="app-container">
@@ -46,16 +64,17 @@ function App() {
       <header className="app-header">
         <h1>Posture Monitor</h1>
         <div className="connection-status">
-          <span className={`status-dot ${status}`}></span>
-          {status.toUpperCase()} {lastUpdate && ` - Last update: ${lastUpdate.toLocaleTimeString()}`}
+          <span className={`status-dot ${isMonitoring ? status : "paused"}`}></span>
+          {isMonitoring ? status.toUpperCase() : "PAUSED"} 
+          {lastUpdate && ` - Last update: ${isMonitoring ? lastUpdate.toLocaleTimeString() : "Monitoring paused"}`}
         </div>
       </header>
       {/* ✨ New Content Section ✨ */}
       <section className="content-card">
-            <h2>The Importance of Good Posture</h2>
-            <p>
-              Good posture is essential for overall health and well-being. It helps prevent back pain, reduces strain on muscles and joints, and improves circulation. Poor posture, on the other hand, can lead to chronic pain, fatigue, and even long-term spinal issues.
-            </p>
+        <h2>The Importance of Good Posture</h2>
+        <p>
+          Good posture is essential for overall health and well-being. It helps prevent back pain, reduces strain on muscles and joints, and improves circulation. Poor posture, on the other hand, can lead to chronic pain, fatigue, and even long-term spinal issues.
+        </p>
       </section>
       <br></br>
       <main className="app-main">
@@ -122,20 +141,35 @@ function App() {
           </section>
 
           <section className="sensor-card">
-            <h2>Posture Data</h2>
-            <p>Posture Angle: {data.ax?.toFixed(2)}°</p>
-            <p>Pitch: {data.ay?.toFixed(2)}°</p>
-            <p>Roll: {data.az?.toFixed(2)}°</p>
+            <h2>Posture Data {!isMonitoring && <span>(Paused)</span>}</h2>
+            <p>Posture Angle: {displayData.ax?.toFixed(2)}°</p>
+            <p>Pitch: {displayData.ay?.toFixed(2)}°</p>
+            <p>Roll: {displayData.az?.toFixed(2)}°</p>
           </section>
 
           <section className="settings-card">
             <h2>Settings</h2>
-            <label>Refresh Rate: </label>
-            <select value={refreshRate} onChange={(e) => setRefreshRate(Number(e.target.value))}>
-              <option value={500}>0.5 sec</option>
-              <option value={1000}>1 sec</option>
-              <option value={2000}>2 sec</option>
-            </select>
+            <div className="setting-row">
+              <label>Refresh Rate: </label>
+              <select 
+                value={refreshRate} 
+                onChange={(e) => setRefreshRate(Number(e.target.value))}
+                disabled={!isMonitoring}
+              >
+                <option value={500}>0.5 sec</option>
+                <option value={1000}>1 sec</option>
+                <option value={2000}>2 sec</option>
+              </select>
+            </div>
+            
+            <div className="setting-row" style={{ marginTop: "15px" }}>
+              <button 
+                onClick={toggleMonitoring}
+                className={`toggle-button ${isMonitoring ? 'on' : 'off'}`}
+              >
+                {isMonitoring ? 'TURN OFF' : 'TURN ON'}
+              </button>
+            </div>
           </section>
         </div>
       </main>

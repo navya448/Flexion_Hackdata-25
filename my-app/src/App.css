@@ -307,3 +307,33 @@ footer {
     width: 100%;
   }
 }
+.toggle-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.toggle-button.on {
+  background-color: #ff5555;
+  color: white;
+}
+
+.toggle-button.off {
+  background-color: #55aa55;
+  color: white;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px; /* Adds spacing between elements */
+  width: 100%; /* Ensures full width usage */
+}
+
+.status-dot.paused {
+  background-color: #f39c12;
+}
