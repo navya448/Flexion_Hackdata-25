@@ -25,10 +25,15 @@ function App() {
       // Update the last valid data whenever we receive new data
       setLastValidData(data);
       
-      setSensorHistory((prev) => [
-        ...prev.slice(-50), // Keep only the last 50 readings
-        {
-          time: new Date().toLocaleTimeString(),
+      // Use a timestamp as identifier to ensure proper ordering
+      const timestamp = Date.now();
+      const timeString = new Date().toLocaleTimeString();
+      
+      setSensorHistory((prev) => {
+        // Create new entry for history
+        const newEntry = {
+          id: timestamp,
+          time: timeString,
           postureAngle: data.ax,
           pitch: data.ay,
           roll: data.az,
@@ -39,8 +44,14 @@ function App() {
           gyroY: data.postureAngle,
           gyroZ: data.rollAngle,
           temperature: data.temperature,
-        },
-      ]);
+        };
+        
+        // Add new entry and trim history to keep last 50 readings
+        const updatedHistory = [...prev, newEntry].slice(-50);
+        
+        // Sort by timestamp/id to ensure proper order
+        return updatedHistory.sort((a, b) => a.id - b.id);
+      });
 
       // Check posture based on current mode's thresholds
       if (data.postureAngle < postureThreshold || (180-Math.abs(data.rollAngle)) > rollThreshold) {
@@ -127,17 +138,23 @@ function App() {
       <br></br>
       <main className="app-main">
         <div className="content-wrapper">
-          {/* 📊 Graphs First */}
+          {/* Four chart sections in a 2x2 grid at the top */}
           <section className="chart-section">
             <h2>Posture Angle Over Time</h2>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={sensorHistory}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
+                <XAxis dataKey="time" tickCount={5} />
+                <YAxis domain={['auto', 'auto']} />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="postureAngle" stroke={mode === "sports" ? "#ff8c00" : "#8884d8"} />
+                <Line 
+                  type="monotone" 
+                  dataKey="postureAngle" 
+                  stroke={mode === "sports" ? "#ff8c00" : "#8884d8"} 
+                  dot={false}
+                  isAnimationActive={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           </section>
@@ -147,13 +164,13 @@ function App() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={sensorHistory}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
+                <XAxis dataKey="time" tickCount={5} />
+                <YAxis domain={['auto', 'auto']} />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="accX" stroke="#ff7300" />
-                <Line type="monotone" dataKey="accY" stroke="#387908" />
-                <Line type="monotone" dataKey="accZ" stroke="#0033cc" />
+                <Line type="monotone" dataKey="accX" stroke="#ff7300" dot={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="accY" stroke="#387908" dot={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="accZ" stroke="#0033cc" dot={false} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </section>
@@ -163,13 +180,13 @@ function App() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={sensorHistory}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
+                <XAxis dataKey="time" tickCount={5} />
+                <YAxis domain={['auto', 'auto']} />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="gyroX" stroke="#d62728" />
-                <Line type="monotone" dataKey="gyroY" stroke="#2ca02c" />
-                <Line type="monotone" dataKey="gyroZ" stroke="#1f77b4" />
+                <Line type="monotone" dataKey="gyroX" stroke="#d62728" dot={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="gyroY" stroke="#2ca02c" dot={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="gyroZ" stroke="#1f77b4" dot={false} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </section>
@@ -179,15 +196,22 @@ function App() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={sensorHistory}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
+                <XAxis dataKey="time" tickCount={5} />
+                <YAxis domain={['auto', 'auto']} />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="temperature" stroke="#ff0000" />
+                <Line 
+                  type="monotone" 
+                  dataKey="temperature" 
+                  stroke="#ff0000" 
+                  dot={false}
+                  isAnimationActive={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           </section>
 
+          {/* Sensor card and settings card side by side in the bottom row */}
           <section className="sensor-card">
             <h2>Posture Data {!isMonitoring && <span>(Paused)</span>}</h2>
             <p>Posture Angle: {displayData.ax?.toFixed(2)}°</p>
