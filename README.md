@@ -141,6 +141,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👥 Contact & Support
 
-- Developer: [Your Name](https://github.com/yourusername)
-- Report Issues: [Issue Tracker](https://github.com/yourusername/posture-monitor/issues)
-- Website: [yourwebsite.com](https://yourwebsite.com)
+- Developer: Navya (https://github.com/navya448)
+- Report Issues: [Issue Tracker](https://github.com/navya448/posture-monitor/issues)
